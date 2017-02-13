@@ -35,7 +35,7 @@ class PptransactionsController extends AppController {
           $accessToken = $credentials->getAccessToken(); */
         $dt = new \Cake\I18n\Time();
         $dtm = $dt->getTimestamp();
-        $invoiceNumber = 'FNZ-' . $this->postedSubscriberData->subscriberId . '-' . $dtm;
+        $invoiceNumber = '3ROS-' . $this->postedSubscriberData->subscriberId . '-' . $dtm;
 
         //$paymentJson = $this->buildPaymentJson($credentials, $invoiceNumber);
 
