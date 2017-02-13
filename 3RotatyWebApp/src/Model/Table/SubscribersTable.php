@@ -124,6 +124,9 @@ class SubscribersTable extends Table {
         $newSubscriber->WebsiteUrl = $subscriber->websiteUrl;
         $newSubscriber->Nickname = $subscriber->nickName;
         $newSubscriber->CountryOfResidence = $subscriber->country;
+        if ($subscriber->tradeCertificateUrl != '') {
+            $newSubscriber->TradeCertificateUrl = $subscriber->tradeCertificateUrl;
+        }
         $newSubscriber->IsActive = 1;
         if ($this->save($newSubscriber)) {
             return $newSubscriber->SubscriberId;
@@ -170,13 +173,60 @@ class SubscribersTable extends Table {
     }
 
     /**
+     * Sign in for subscriber
+     * @param int $subscriberId 
+     * @return \App\Dto\SubscriberDetailedInfo $subscriberDetails
+     */
+    public function getSubscriberDetailsById($subscriberId) {
+        $subscriberDetails = NULL;
+        $result = $this->find()
+                ->where(['SubscriberId' => $subscriberId])
+                ->select(['SubscriberId',
+                    'SubscriberName',
+                    'EmailId',
+                    'IsSubscribed',
+                    'SubscriptionDate',
+                    'Stype',
+                    'Nickname',
+                    'Password',
+                    'TelephoneNo',
+                    'MobileNo',
+                    'WebsiteUrl',
+                    'BusinessContactPerson',
+                    'CountryOfResidence',
+                    'TradeCertificateUrl'])
+                ->first();
+
+        if ($result) {
+            $subscriberDetails = new \App\Dto\SubscriberDetailedInfo();
+            $subscriberDetails->name = $result->SubscriberName;
+            $subscriberDetails->nickName = $result->Nickname == NULL ? "" : $result->Nickname;
+            $subscriberDetails->sType = $result->Stype == CORPORATE_SUB_TYPE ? 'c' : 'f';
+            $subscriberDetails->isSubscribed = $result->IsSubscribed ? true : false;
+            $subscriberDetails->subscriberId = $result->SubscriberId;
+            $subscriberDetails->telNo = $result->TelephoneNo;
+            $subscriberDetails->mobileNo = $result->MobileNo;
+            $subscriberDetails->websiteUrl = $result->WebsiteUrl;
+            $subscriberDetails->country = $result->CountryOfResidence;
+            $subscriberDetails->subscriptionDate = $result->SubscriptionDate;
+            $subscriberDetails->emailId = $result->EmailId;
+            $subscriberDetails->password = $result->Password;
+            $subscriberDetails->contactPerson = $result->BusinessContactPerson;
+            if ($result->Stype == CORPORATE_SUB_TYPE) {
+                $subscriberDetails->tradeCertificateUrl = $result->TradeCertificateUrl;
+            }
+        }
+        return $subscriberDetails;
+    }
+
+    /**
      * Updates subscriber profile
      * @param \App\Dto\SubscriberProfileUpdateRequestDto $subscriberProfileUpdateRequest
      * @param int $subscriberId 
      * @return boolean true if success or else false
      */
     public function updateSubscriberProfile($subscriberProfileUpdateRequest, $subscriberId) {
-        $dbSubscriber = $this->find()
+        $dbSubscriber = $this->getTable()->find()
                 ->where(['SubscriberId' => $subscriberId])
                 ->first();
 
@@ -195,7 +245,7 @@ class SubscribersTable extends Table {
                 $dbSubscriber->Nickname = $subscriberProfileUpdateRequest->nickName;
             }
 
-            if ($this->save($dbSubscriber)) {
+            if ($this->getTable()->save($dbSubscriber)) {
                 return true;
             }
         }
@@ -286,7 +336,7 @@ class SubscribersTable extends Table {
      * @param type $subscriberId
      * @return \App\Dto\SubscriberPayLaterDto
      */
-    public function getSubscriberDetails($subscriberId){
+    public function getSubscriberDetails($subscriberId) {
         $subscriberDetails = NULL;
         $result = $this->find()
                 ->where(['SubscriberId' => $subscriberId])
@@ -307,5 +357,89 @@ class SubscribersTable extends Table {
             $subscriberDetails->emailId = $result->EmailId;
         }
         return $subscriberDetails;
+    }
+
+    /**
+     * Returns list of records for a requested page size and limit of records
+     * @param int $limit
+     * @param int $pageNo
+     * @return \App\Dto\SubscriberListDto
+     */
+    public function getSubscriberList($limit, $pageNo) {
+        $subscriberList = null;
+        $result = $this->getTable()->find()
+                ->select(['SubscriberId',
+                    'SubscriberName',
+                    'Stype',
+                    'SubscriptionDate',
+                    'IsSubscribed',
+                    'IsActive'])
+                ->page($pageNo, $limit)
+                ->all();
+
+        $recordCounter = 0;
+        foreach ($result as $subscriberRecord) {
+            $subscriberListRecord = new \App\Dto\SubscriberListDto();
+            $subscriberListRecord->subscriberId = $subscriberRecord->SubscriberId;
+            $subscriberListRecord->subscriberName = $subscriberRecord->SubscriberName;
+            $subscriberListRecord->subscriptionType = $subscriberRecord->Stype;
+            if ($subscriberRecord->SubscriptionDate == null) {
+                $subscriberListRecord->subscriptionDate = 'N/A';
+            } else {
+                $tm = new \Cake\I18n\Time($subscriberRecord->SubscriptionDate);
+                $subscriberListRecord->subscriptionDate = $tm->format('d M Y');
+            }
+            $subscriberListRecord->currentStatusId = $subscriberRecord->IsActive;
+            $subscriberListRecord->isSubscribed = $subscriberRecord->IsSubscribed;
+            $subscriberList[$recordCounter++] = $subscriberListRecord;
+        }
+
+        return $subscriberList;
+    }
+
+    public function getTotalRecordCount() {
+        $totalRecords = $this->getTable()->find()->count();
+        return $totalRecords;
+    }
+
+    /**
+     * Status change from active to inactive or vice versa
+     * @param int $subscriberId
+     * @param int $status
+     * @return boolean
+     */
+    public function changeStatus($subscriberId, $status) {
+        $statusChanged = false;
+        $dbSubscriber = $this->find()
+                ->where(['SubscriberId' => $subscriberId])
+                ->select(['SubscriberId', 'IsActive'])
+                ->first();
+
+        if ($dbSubscriber) {
+            $dbSubscriber->IsActive = $status;
+            if ($this->save($dbSubscriber)) {
+                $statusChanged = true;
+            }
+        }
+        return $statusChanged;
+    }
+
+    /**
+     * Delete all the subscriber related information
+     * @param int $subscriberId
+     * @return boolean
+     */
+    public function deleteSubscriber($subscriberId){
+        $deletedSuccess = false;
+        $dbSubscriber = $this->find()
+                ->where(['SubscriberId' => $subscriberId])
+                ->first();
+        
+        if($dbSubscriber){
+            if($this->delete($dbSubscriber)){
+                $deletedSuccess = true;
+            }
+        }
+        return $deletedSuccess;
     }
 }

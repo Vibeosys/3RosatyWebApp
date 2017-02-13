@@ -39,3 +39,48 @@ define('PAYMENT_CURRENCY', 'USD');
  * PP environment for mobile
  */
 define('PP_ENV', 'sandbox');
+/**
+ * Sort by filters for portfolio list
+ */
+define('SORT_BY_POPULAR', 1);
+define('SORT_BY_PRICE_LOW_TO_HIGH', 2);
+define('SORT_BY_PRICE_HIGH_TO_LOW', 3);
+define('PAGE_SIZE', 10);
+/**
+ * Subscriber active status
+ */
+define('SUBSCRIPTION_STATUS_ACTIVE', 1);
+define('SUBSCRIPTION_STATUS_INACTIVE', 0);
+/**
+ * Subscriber current status
+ */
+define('SUBSCRIBER_ON_HOLD', 1);
+define('SUBSCRIBER_ACTIVATE', 2);
+define('SUBSCRIBER_BYPASS', 3);
+/**
+ * Subscriber status text
+ */
+define('SUBSCRIPTION_STATUS_SUBSCRIBED', 'Subscribed');
+define('SUBSCRIPTION_STATUS_REGISTERED', 'Registered');
+/**
+ * Banner type costants
+ */
+define('HOME_PAGE_TOP_BANNER', 1);
+define('HOME_PAGE_BOTTOM_BANNER', 2);
+define('PORTFOLIO_PAGE_TOP_BANNER', 3);
+define('PORTFOLIO_PAGE_BOTTOM_BANNER', 4);
+/**
+ * Portfolio image count
+ */
+define('IMAGE_CORPORATE_LIMIT', 8);
+define('IMAGE_FREELANCE_LIMIT', 4);
+/**
+ * Portfolio limit
+ */
+define('FREELANCE_PORTFOLIO_LIMIT', 1);
+/**
+ * Admin credentials
+ * 
+ */
+define('ADMIN_EMAIL', 'admin@3rosaty.com');
+define('ADMIN_PASSWORD', '3rosaty2016');

@@ -12,96 +12,55 @@ use App\Controller\AppController;
 class SubcategoriesController extends AppController {
 
     /**
-     * Index method
-     *
-     * @return \Cake\Network\Response|null
+     * Ajax call for add sub category
      */
-    public function index() {
-        $subcategories = $this->paginate($this->Subcategories);
-
-        $this->set(compact('subcategories'));
-        $this->set('_serialize', ['subcategories']);
-    }
-
-    /**
-     * View method
-     *
-     * @param string|null $id Subcategory id.
-     * @return \Cake\Network\Response|null
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function view($id = null) {
-        $subcategory = $this->Subcategories->get($id, [
-            'contain' => []
-        ]);
-
-        $this->set('subcategory', $subcategory);
-        $this->set('_serialize', ['subcategory']);
-    }
-
-    /**
-     * Add method
-     *
-     * @return \Cake\Network\Response|void Redirects on successful add, renders view otherwise.
-     */
-    public function add() {
-        $subcategory = $this->Subcategories->newEntity();
-        if ($this->request->is('post')) {
-            $subcategory = $this->Subcategories->patchEntity($subcategory, $this->request->data);
-            if ($this->Subcategories->save($subcategory)) {
-                $this->Flash->success(__('The subcategory has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The subcategory could not be saved. Please, try again.'));
-            }
+    public function addSubcategory() {
+        $this->apiInitialize();
+        $categoryId = $this->request->data['categoryId'];
+        $subCategoryName = $this->request->data['subCategoryName'];
+        $subCategoryExists = $this->Subcategories->checkSubcategoryExists(strtolower($subCategoryName), $categoryId);
+        if ($subCategoryExists) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(230));
+            return;
         }
-        $this->set(compact('subcategory'));
-        $this->set('_serialize', ['subcategory']);
-    }
-
-    /**
-     * Edit method
-     *
-     * @param string|null $id Subcategory id.
-     * @return \Cake\Network\Response|void Redirects on successful edit, renders view otherwise.
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function edit($id = null) {
-        $subcategory = $this->Subcategories->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $subcategory = $this->Subcategories->patchEntity($subcategory, $this->request->data);
-            if ($this->Subcategories->save($subcategory)) {
-                $this->Flash->success(__('The subcategory has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The subcategory could not be saved. Please, try again.'));
-            }
-        }
-        $this->set(compact('subcategory'));
-        $this->set('_serialize', ['subcategory']);
-    }
-
-    /**
-     * Delete method
-     *
-     * @param string|null $id Subcategory id.
-     * @return \Cake\Network\Response|null Redirects to index.
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function delete($id = null) {
-        $this->request->allowMethod(['post', 'delete']);
-        $subcategory = $this->Subcategories->get($id);
-        if ($this->Subcategories->delete($subcategory)) {
-            $this->Flash->success(__('The subcategory has been deleted.'));
+        $subCategoryShortName = \App\Utils\StringUtils::hyphenize($subCategoryName);
+        $addSuccess = $this->Subcategories->addNewSubcategory($categoryId, $subCategoryName, $subCategoryShortName);
+        if ($addSuccess) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareJsonSuccessMessage(127));
         } else {
-            $this->Flash->error(__('The subcategory could not be deleted. Please, try again.'));
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(231));
+        }
+    }
+
+    public function deleteSubcategory($subCategoryId) {
+        $this->apiInitialize();
+        if (!$this->sessionManager->isAdminLoggedIn()) {
+            $this->redirect('/admin/login');
+            return;
         }
 
-        return $this->redirect(['action' => 'index']);
+        $subCategoryDeleted = $this->Subcategories->deleteSubcategory($subCategoryId);
+        $this->response->body(json_encode($subCategoryDeleted));
+    }
+
+    public function getSubCategoryList($categoryId) {
+        $this->apiInitialize();
+        $subCategoryList = $this->Subcategories->getSubCategoryList($categoryId);
+        $encodedString = json_encode($subCategoryList);
+        $this->response->body($encodedString);
+    }
+
+    public function updateSubcategory() {
+        $this->apiInitialize();
+        $subCategoryName = $this->request->data['subCategoryName'];
+        $subCategoryId = $this->request->data['subCategoryId'];
+
+        $categoryUpdated = $this->Subcategories->updateSubcategory($subCategoryId, $subCategoryName);
+        if ($categoryUpdated) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareSuccessMessage(128));
+        } else {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(232));
+        }
     }
 
 }

@@ -85,12 +85,27 @@ class PortfolioTable extends Table {
     }
 
     /**
+     * Deletes all the portfolio
+     * @param int $subscriberId
+     */
+    public function deleteAllPortfolios($subscriberId) {
+        $portfolioList = $this->getTable()->find()
+                ->where(['SubscriberId' => $subscriberId])
+                ->select();
+        $dbResultArray = $portfolioList->toArray();
+
+        foreach ($dbResultArray as $portfolio) {
+            $this->getTable()->delete($portfolio);
+        }
+    }
+
+    /**
      * Update portfolio with given parameters
      * @param \App\Dto\PortfolioUpdateRequestDto $portfolioUpdateRequest
      * @return boolean
      */
     public function updatePortfolio($portfolioUpdateRequest) {
-        $dbPortfolio = $this->find()
+        $dbPortfolio = $this->getTable()->find()
                 ->where(['PortfolioId' => $portfolioUpdateRequest->portfolioId])
                 ->first();
         //If the portfolio is found and gets updated then return true else false
@@ -98,8 +113,7 @@ class PortfolioTable extends Table {
             $dbPortfolio->CategoryId = $portfolioUpdateRequest->categoryId;
             if ($portfolioUpdateRequest->subCategoryId == 0) {
                 $dbPortfolio->SubcategoryId = NULL;
-            }
-            else{
+            } else {
                 $dbPortfolio->SubcategoryId = $portfolioUpdateRequest->subCategoryId;
             }
             $dbPortfolio->FacebookLink = $portfolioUpdateRequest->fbLink;
@@ -110,7 +124,7 @@ class PortfolioTable extends Table {
             if (isset($portfolioUpdateRequest->isActive)) {
                 $dbPortfolio->IsActive = $portfolioUpdateRequest->isActive;
             }
-            if ($this->save($dbPortfolio)) {
+            if ($this->getTable()->save($dbPortfolio)) {
                 return true;
             }
         }
@@ -261,13 +275,74 @@ class PortfolioTable extends Table {
         return $portfolioDetailsResponse;
     }
 
+    public function getPortfolioData($portfolioId) {
+        $this->addTableRelationsForPortfolio();
+        $portfolioDetailsResponse = NULL;
+        $results = $this->getTable()->find()
+                ->contain(['subscribers', 'eventcategories', 'subcategories', 'portfolio_photos'])
+                ->where([ 'subscribers.IsSubscribed' => 1,
+                    'portfolio.PortfolioId' => $portfolioId])
+                ->select(['PortfolioId',
+                    'subscribers.SubscriberName',
+                    'portfolio.SubscriberId',
+                    'CategoryId',
+                    'eventcategories.CatName',
+                    'SubcategoryId',
+                    'subcategories.SubCatName',
+                    'MinPrice',
+                    'MaxPrice',
+                    'FacebookLink',
+                    'YoutubeLink',
+                    'AboutPortfolio',
+                    'portfolio.IsActive',
+                    'subscribers.Nickname',
+                    'subscribers.Stype'])
+                ->all();
+        $resultsArray = $results->toArray();
+        foreach ($resultsArray as $resultRecord) {
+            $portfolioDetailsResponse = new \App\Dto\PortfolioUpdateDetailDto();
+            $portfolioDetailsResponse->aboutUs = $resultRecord->AboutPortfolio;
+            $portfolioDetailsResponse->portfolioId = $resultRecord->PortfolioId;
+            $portfolioDetailsResponse->category = $resultRecord->eventcategory->CatName;
+            $portfolioDetailsResponse->subCategory = $resultRecord->subcategory->SubCatName;
+            $portfolioDetailsResponse->categoryId = $resultRecord->CategoryId;
+            $portfolioDetailsResponse->subCategoryId = $resultRecord->SubcategoryId;
+            $portfolioDetailsResponse->minPrice = $resultRecord->MinPrice;
+            $portfolioDetailsResponse->maxPrice = $resultRecord->MaxPrice;
+            $portfolioDetailsResponse->subscriberId = $resultRecord->SubscriberId;
+            $portfolioDetailsResponse->fbLink = $resultRecord->FacebookLink;
+            $portfolioDetailsResponse->youtubeLink = $resultRecord->YoutubeLink;
+            $portfolioDetailsResponse->isActive = $resultRecord->IsActive;
+            //set local variables
+            $nickName = $resultRecord->subscriber->Nickname;
+            $subscriberType = $resultRecord->subscriber->Stype;
+
+            if (isset($nickName) && $subscriberType == 'f') {
+                $portfolioDetailsResponse->subscriberName = $nickName;
+            } else {
+                $portfolioDetailsResponse->subscriberName = $resultRecord->subscriber->SubscriberName;
+            }
+            $photoRecordCounter = 0;
+            //Add phototos to array
+            foreach ($resultRecord->portfolio_photos as $photoRecord) {
+                if ($photoRecord->IsCoverImage == 1) {
+                    $portfolioDetailsResponse->coverImageUrl = $photoRecord->PhotoUrl;
+                } else {
+                    $portfolioDetailsResponse->photos[$photoRecord->PhotoId] = $photoRecord->PhotoUrl;
+                }
+            } // End of for photos
+        }
+
+        return $portfolioDetailsResponse;
+    }
+
     /**
      * Adds new portfolio for subscriber
      * @param \App\Dto\PortfolioAdditionDto $portfolioAddition
      * @param int $subscriberId
      */
     public function addPortfolio($portfolioAddition, $subscriberId) {
-        $portfolioNew = $this->newEntity();
+        $portfolioNew = $this->getTable()->newEntity();
         $portfolioNew->SubscriberId = $subscriberId;
         $portfolioNew->CategoryId = $portfolioAddition->categoryId;
         //In case of subcategory is 0 instead of NULL then take care
@@ -282,7 +357,7 @@ class PortfolioTable extends Table {
         $portfolioNew->IsActive = 1;
         $portfolioNew->CreatedDate = new \Cake\I18n\Time();
 
-        if ($this->save($portfolioNew)) {
+        if ($this->getTable()->save($portfolioNew)) {
             return $portfolioNew->PortfolioId;
         } else {
             return 0;
@@ -309,6 +384,44 @@ class PortfolioTable extends Table {
                     'Portfolio.IsActive',
                     'portfolio_photos.PhotoUrl'])
                 ->orderDesc('Portfolio.CreatedDate')
+                ->all();
+
+        $resultArray = $results->toArray();
+        $recordCounter = 0;
+        foreach ($resultArray as $resultRecord) {
+            $subscriberPortfolioResponse = new \App\Dto\SubscriberPortfolioListResponseDto();
+            $subscriberPortfolioResponse->portfolioId = $resultRecord->PortfolioId;
+            $subscriberPortfolioResponse->category = $resultRecord->eventcategory->CatName;
+            $subscriberPortfolioResponse->subCategory = $resultRecord->subcategory->SubCatName;
+            $subscriberPortfolioResponse->minPrice = $resultRecord->MinPrice;
+            $subscriberPortfolioResponse->maxPrice = $resultRecord->MaxPrice;
+            $subscriberPortfolioResponse->coverImageUrl = $resultRecord->portfolio_photo->PhotoUrl;
+            $subscriberPortfolioResponse->isActive = $resultRecord->IsActive;
+            $portfolioList[$recordCounter++] = $subscriberPortfolioResponse;
+        }
+        return $portfolioList;
+    }
+
+    /**
+     * Duplicated for the sake of no impact
+     * @param type $subscriberId
+     * @return \App\Dto\SubscriberPortfolioListResponseDto
+     */
+    public function getPortfolioListbySubscriber($subscriberId) {
+        $this->addTableRelationMapping();
+        $portfolioList = null;
+        $results = $this->getTable()->find()
+                ->contain(['subscribers', 'eventcategories', 'subcategories', 'portfolio_photos'])
+                ->where(['subscribers.IsSubscribed' => 1,
+                    'portfolio.SubscriberId' => $subscriberId])
+                ->select(['PortfolioId',
+                    'eventcategories.CatName',
+                    'subcategories.SubCatName',
+                    'MinPrice',
+                    'MaxPrice',
+                    'portfolio.IsActive',
+                    'portfolio_photos.PhotoUrl'])
+                ->orderDesc('portfolio.CreatedDate')
                 ->all();
 
         $resultArray = $results->toArray();
@@ -380,6 +493,199 @@ class PortfolioTable extends Table {
         return $portfolioList;
     }
 
+    /**
+     * Get the value of portfolio
+     * @return \App\Dto\FindPortfolioDto
+     */
+    public function getSelectedPortfolioList() {
+        $this->addTableRelationMapping();
+        $portfolioList = null;
+        $resultsData = $this->getTable()->find()
+                ->contain(['subscribers', 'eventcategories', 'subcategories', 'portfolio_photos'])
+                ->where(['portfolio.IsActive' => 1, 'subscribers.IsSubscribed' => 1])
+                ->select(['PortfolioId',
+                    'subscribers.SubscriberName',
+                    'CategoryId',
+                    'eventcategories.CatName',
+                    'SubcategoryId',
+                    'subcategories.SubCatName',
+                    'MinPrice',
+                    'MaxPrice',
+                    'subscribers.Nickname',
+                    'subscribers.Stype',
+                    'portfolio_photos.PhotoUrl'])
+                ->orderDesc('portfolio.CreatedDate')
+                ->limit('6');
+        //If no record found then return null
+        if (!$resultsData) {
+            return null;
+        }
+        // $resultArrayData = $resultsData->toArray();
+
+        $resultArrayData = $resultsData->toArray();
+
+        $recordCounter = 0;
+        foreach ($resultsData as $recordData => $recordDataKey) {
+            $portfolioRecord = new \App\Dto\FindPortfolioDto();
+            $portfolioRecord->portfolioId = $recordDataKey->PortfolioId;
+            $portfolioRecord->categoryId = $recordDataKey->CategoryId;
+            $portfolioRecord->category = $recordDataKey->eventcategory->CatName;
+            $portfolioRecord->subcategory = $recordDataKey->subcategory->SubCatName;
+            $portfolioRecord->subcategoryId = $recordDataKey->SubcategoryId;
+            $portfolioRecord->minPrice = $recordDataKey->MinPrice;
+            $portfolioRecord->maxPrice = $recordDataKey->MaxPrice;
+            $nickName = $recordDataKey->subscriber->Nickname;
+            $subscriberType = $recordDataKey->subscriber->Stype;
+            //If the nickname is set and subscriber type is freelance
+            if (isset($nickName) && $subscriberType == 'f') {
+                $portfolioRecord->subscriberName = $nickName;
+            } else {
+                $portfolioRecord->subscriberName = $recordDataKey->subscriber->SubscriberName;
+            }
+            $portfolioRecord->coverImageUrl = $recordDataKey->portfolio_photo->PhotoUrl;
+
+            $portfolioList[$recordCounter++] = $portfolioRecord;
+        } //end of for
+
+        return $portfolioList;
+    }
+
+    /**
+     * Gets category wise portfolio list
+     * @param int $categoryId
+     * @param int $subCategoryId
+     * @return \App\Dto\FindPortfolioDto
+     */
+    public function getCategoryWisePortfolioList($categoryId, $subCategoryId) {
+        $this->addRelations();
+        $portfoioList = null;
+        $resultsObject = $this->find()
+                ->contain(['subscribers', 'eventcategories', 'subcategories', 'portfolio_photos'])
+                ->where(['subscribers.IsSubscribed' => 1, 'Portfolio.IsActive' => 1])
+                ->select(['PortfolioId',
+            'subscribers.SubscriberName',
+            'eventcategories.CatName',
+            'subcategories.SubCatName',
+            'MinPrice',
+            'MaxPrice',
+            'subscribers.Nickname',
+            'subscribers.Stype',
+            'portfolio_photos.PhotoUrl']);
+
+        if ($subCategoryId != 0) {
+            $resultsObject = $resultsObject->where(['SubCategoryId' => $subCategoryId]);
+        }
+        if ($categoryId != 0) {
+            $resultsObject = $resultsObject->where(['CategoryId' => $categoryId]);
+        }
+
+        $resultArrayData = $resultsObject->toArray();
+
+        $recordCounter = 0;
+        foreach ($resultArrayData as $recordDataKey) {
+            $portfolioRecord = new \App\Dto\FindPortfolioDto();
+            $portfolioRecord->portfolioId = $recordDataKey->PortfolioId;
+            $portfolioRecord->category = $recordDataKey->eventcategory->CatName;
+            $portfolioRecord->subcategory = $recordDataKey->subcategory->SubCatName;
+            $portfolioRecord->minPrice = $recordDataKey->MinPrice;
+            $portfolioRecord->maxPrice = $recordDataKey->MaxPrice;
+            $nickName = $recordDataKey->subscriber->Nickname;
+            $subscriberType = $recordDataKey->subscriber->Stype;
+            //If the nickname is set and subscriber type is freelance
+            if (isset($nickName) && $subscriberType == 'f') {
+                $portfolioRecord->subscriberName = $nickName;
+            } else {
+                $portfolioRecord->subscriberName = $recordDataKey->subscriber->SubscriberName;
+            }
+            $portfolioRecord->coverImageUrl = $recordDataKey->portfolio_photo->PhotoUrl;
+
+            $portfoioList[$recordCounter++] = $portfolioRecord;
+        } //end of for
+
+        return $portfoioList;
+    }
+
+    /**
+     * Gets filtered portfolios by given criteria
+     * @param int $categoryId
+     * @param int $subCategoryId
+     * @param int $minPrice
+     * @param int $maxPrice
+     * @param int $sortById
+     * @return \App\Dto\FindPortfolioDto
+     */
+    public function getFilteredPortfolioList($categoryId, $subCategoryId, $minPrice, $maxPrice, $sortById) {
+        $this->addRelations();
+        $portfoioList = null;
+        $resultsObject = $this->find()
+                ->contain(['subscribers', 'eventcategories', 'subcategories', 'portfolio_photos'])
+                ->where(['subscribers.IsSubscribed' => 1])
+                ->select(['PortfolioId',
+            'subscribers.SubscriberName',
+            'CategoryId',
+            'eventcategories.CatName',
+            'SubcategoryId',
+            'subcategories.SubCatName',
+            'MinPrice',
+            'MaxPrice',
+            'subscribers.Nickname',
+            'subscribers.Stype',
+            'portfolio_photos.PhotoUrl',
+            'Portfolio.CreatedDate'
+        ]);
+
+
+        if ($subCategoryId != 0) {
+            $resultsObject = $resultsObject->where(['SubCategoryId' => $subCategoryId]);
+        }
+        if ($categoryId != 0) {
+            $resultsObject = $resultsObject->where(['CategoryId' => $categoryId]);
+        }
+
+        if ($minPrice != 0 && $maxPrice != 0) {
+            $resultsObject = $resultsObject->where(['MinPrice BETWEEN ' . $minPrice . ' AND ' . $maxPrice]);
+        }
+
+        if ($sortById == SORT_BY_POPULAR) {
+            $resultsObject = $resultsObject->orderDesc('Portfolio.CreatedDate');
+        } elseif ($sortById == SORT_BY_PRICE_LOW_TO_HIGH) {
+            $resultsObject = $resultsObject->orderAsc('MinPrice');
+        } elseif ($sortById == SORT_BY_PRICE_HIGH_TO_LOW) {
+            $resultsObject = $resultsObject->orderDesc('MinPrice');
+        }
+        //If no record found then return null
+        if (!$resultsObject) {
+            return null;
+        }
+
+        $resultArrayData = $resultsObject->toArray();
+
+        $recordCounter = 0;
+        foreach ($resultArrayData as $recordDataKey) {
+            $portfolioRecord = new \App\Dto\FindPortfolioDto();
+            $portfolioRecord->portfolioId = $recordDataKey->PortfolioId;
+            $portfolioRecord->categoryId = $recordDataKey->CategoryId;
+            $portfolioRecord->category = $recordDataKey->eventcategory->CatName;
+            $portfolioRecord->subcategory = $recordDataKey->subcategory->SubCatName;
+            $portfolioRecord->subcategoryId = $recordDataKey->SubcategoryId;
+            $portfolioRecord->minPrice = $recordDataKey->MinPrice;
+            $portfolioRecord->maxPrice = $recordDataKey->MaxPrice;
+            $nickName = $recordDataKey->subscriber->Nickname;
+            $subscriberType = $recordDataKey->subscriber->Stype;
+            //If the nickname is set and subscriber type is freelance
+            if (isset($nickName) && $subscriberType == 'f') {
+                $portfolioRecord->subscriberName = $nickName;
+            } else {
+                $portfolioRecord->subscriberName = $recordDataKey->subscriber->SubscriberName;
+            }
+            $portfolioRecord->coverImageUrl = $recordDataKey->portfolio_photo->PhotoUrl;
+
+            $portfoioList[$recordCounter++] = $portfolioRecord;
+        } //end of for
+
+        return $portfoioList;
+    }
+
     private function addRelations() {
         $this->belongsTo('subscribers', [
             'foreignKey' => 'SubscriberId',
@@ -399,6 +705,30 @@ class PortfolioTable extends Table {
         ]);
 
         $this->hasOne('portfolio_photos', [
+            'foreignKey' => 'PortfolioId',
+            'conditions' => ['portfolio_photos.IsCoverImage' => 1]
+        ]);
+    }
+
+    private function addTableRelationMapping() {
+        $this->getTable()->belongsTo('subscribers', [
+            'foreignKey' => 'SubscriberId',
+            'joinType' => 'INNER'
+        ]);
+
+        $this->getTable()->belongsTo('eventcategories', [
+            'bindingKey' => 'CatId',
+            'foreignKey' => 'CategoryId',
+            'joinType' => 'INNER'
+        ]);
+
+        $this->getTable()->belongsTo('subcategories', [
+            'bindingKey' => 'SubCatId',
+            'foreignKey' => 'SubcategoryId',
+            'joinType' => 'LEFT'
+        ]);
+
+        $this->getTable()->hasOne('portfolio_photos', [
             'foreignKey' => 'PortfolioId',
             'conditions' => ['portfolio_photos.IsCoverImage' => 1]
         ]);
@@ -447,6 +777,30 @@ class PortfolioTable extends Table {
         ]);
 
         $this->hasMany('portfolio_photos', [
+            'foreignKey' => 'PortfolioId',
+            'className' => 'PortfolioPhotos'
+        ]);
+    }
+
+    private function addTableRelationsForPortfolio() {
+        $this->getTable()->belongsTo('subscribers', [
+            'foreignKey' => 'SubscriberId',
+            'joinType' => 'INNER'
+        ]);
+
+        $this->getTable()->belongsTo('eventcategories', [
+            'bindingKey' => 'CatId',
+            'foreignKey' => 'CategoryId',
+            'joinType' => 'INNER'
+        ]);
+
+        $this->getTable()->belongsTo('subcategories', [
+            'bindingKey' => 'SubCatId',
+            'foreignKey' => 'SubcategoryId',
+            'joinType' => 'LEFT'
+        ]);
+
+        $this->getTable()->hasMany('portfolio_photos', [
             'foreignKey' => 'PortfolioId',
             'className' => 'PortfolioPhotos'
         ]);

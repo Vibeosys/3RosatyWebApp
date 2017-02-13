@@ -11,16 +11,15 @@ use App\Controller\AppController;
  */
 class EventcategoriesController extends AppController {
 
-    /**
-     * Index method
-     *
-     * @return \Cake\Network\Response|null
-     */
-    public function index() {
-        $eventcategories = $this->paginate($this->Eventcategories);
-
-        $this->set(compact('eventcategories'));
-        $this->set('_serialize', ['eventcategories']);
+    public function deleteCategory($categoryId){
+        $this->apiInitialize();
+        if(!$this->sessionManager->isAdminLoggedIn()){
+            $this->redirect('/admin/login');
+            return;
+        }
+        
+        $categoryDeleted = $this->Eventcategories->deleteCategory($categoryId);
+        $this->response->body(json_encode($categoryDeleted));       
     }
 
     public function getList() {
@@ -35,84 +34,40 @@ class EventcategoriesController extends AppController {
     }
 
     /**
-     * View method
-     *
-     * @param string|null $id Eventcategory id.
-     * @return \Cake\Network\Response|null
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     * Ajax method
+     * @return type
      */
-    public function view($id = null) {
-        $eventcategory = $this->Eventcategories->get($id, [
-            'contain' => []
-        ]);
-
-        $this->set('eventcategory', $eventcategory);
-        $this->set('_serialize', ['eventcategory']);
-    }
-
-    /**
-     * Add method
-     *
-     * @return \Cake\Network\Response|void Redirects on successful add, renders view otherwise.
-     */
-    public function add() {
-        $eventcategory = $this->Eventcategories->newEntity();
-        if ($this->request->is('post')) {
-            $eventcategory = $this->Eventcategories->patchEntity($eventcategory, $this->request->data);
-            if ($this->Eventcategories->save($eventcategory)) {
-                $this->Flash->success(__('The eventcategory has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The eventcategory could not be saved. Please, try again.'));
-            }
+    public function addNewCategory() {
+        $this->apiInitialize();
+        $categoryName = $this->request->data['categoryName'];
+        $categoryShortName = \App\Utils\StringUtils::hyphenize($categoryName);
+        $categoryExists = $this->Eventcategories->categoryExists(strtolower($categoryName));
+        if ($categoryExists) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(227));
+            return;
         }
-        $this->set(compact('eventcategory'));
-        $this->set('_serialize', ['eventcategory']);
-    }
-
-    /**
-     * Edit method
-     *
-     * @param string|null $id Eventcategory id.
-     * @return \Cake\Network\Response|void Redirects on successful edit, renders view otherwise.
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function edit($id = null) {
-        $eventcategory = $this->Eventcategories->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $eventcategory = $this->Eventcategories->patchEntity($eventcategory, $this->request->data);
-            if ($this->Eventcategories->save($eventcategory)) {
-                $this->Flash->success(__('The eventcategory has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The eventcategory could not be saved. Please, try again.'));
-            }
-        }
-        $this->set(compact('eventcategory'));
-        $this->set('_serialize', ['eventcategory']);
-    }
-
-    /**
-     * Delete method
-     *
-     * @param string|null $id Eventcategory id.
-     * @return \Cake\Network\Response|null Redirects to index.
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function delete($id = null) {
-        $this->request->allowMethod(['post', 'delete']);
-        $eventcategory = $this->Eventcategories->get($id);
-        if ($this->Eventcategories->delete($eventcategory)) {
-            $this->Flash->success(__('The eventcategory has been deleted.'));
+        $categoryAdded = $this->Eventcategories->addNewCategory($categoryName, $categoryShortName);
+        if ($categoryAdded) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareJsonSuccessMessage(125));
         } else {
-            $this->Flash->error(__('The eventcategory could not be deleted. Please, try again.'));
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(228));
         }
+    }
 
-        return $this->redirect(['action' => 'index']);
+    /**
+     * Ajax method
+     */
+    public function updateCategory() {
+        $this->apiInitialize();
+        $categoryNameToUpdate = $this->request->data['categoryNameToUpdate'];
+        $selectedCategoryId = $this->request->data['selectedCategoryId'];
+
+        $categoryUpdated = $this->Eventcategories->updateCategoryName($categoryNameToUpdate, $selectedCategoryId);
+        if ($categoryUpdated) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareJsonSuccessMessage(126));
+        } else {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(229));
+        }
     }
 
 }

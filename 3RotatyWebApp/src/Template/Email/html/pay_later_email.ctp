@@ -68,9 +68,9 @@
 
                             <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
                                 <td class="content-wrap" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;" valign="top">
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin-top: 15px;border: 2px solid #FFA000;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin-top: 15px;border: 2px solid #15142E;">
                                         <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
-                                            <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box;font-size: 23px;vertical-align: top;margin: 0;padding: 9px 14px;    font-weight: 400;text-align: left;background: #FFA000;color: #fff;" valign="top">
+                                            <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box;font-size: 23px;vertical-align: top;margin: 0;padding: 9px 14px;    font-weight: 400;text-align: left;background: #15142E;color: #fff;" valign="top">
                                                 Subscriber who chose to pay later
                                             </td>
                                         </tr>
@@ -91,10 +91,10 @@
                                             </td>
                                         </tr>
                                         <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
-                                            <td lass="content-wrap" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;border-top: 2px solid #FFA000;" valign="top">
+                                            <td lass="content-wrap" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;border-top: 2px solid #15142E;" valign="top">
                                                 <table class="main" width="100%" cellpadding="0" cellspacing="0" itemprop="action" itemscope itemtype="http://schema.org/ConfirmAction" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; border-radius: 3px; background-color: #fff; margin: 10px 0px;" bgcolor="#fff">
                                                     <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
-                                                        <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 5px; text-align:center;width: 50%;border-right: 2px solid #FFA000;" valign="top">
+                                                        <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 5px; text-align:center;width: 50%;border-right: 2px solid #15142E;" valign="top">
                                                             <table class="main" width="100%" cellpadding="0" cellspacing="0"  style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px;background-color: #fff;" bgcolor="#fff">
                                                                 <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
                                                                     <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; vertical-align: top; margin: 0; padding: 5px 5px 0px 5px; text-align:center;width: 100%;" valign="top">
@@ -131,10 +131,10 @@
                                             </td>
                                         </tr>
                                         <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
-                                            <td lass="content-wrap" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;border-top: 2px solid #FFA000;" valign="top">
+                                            <td lass="content-wrap" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;border-top: 2px solid #15142E;" valign="top">
                                                 <table class="main" width="100%" cellpadding="0" cellspacing="0" itemprop="action" itemscope itemtype="http://schema.org/ConfirmAction" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; border-radius: 3px; background-color: #fff; margin: 10px 0px;" bgcolor="#fff">
                                                     <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
-                                                        <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 5px; text-align:center;width: 50%;border-right: 2px solid #FFA000;" valign="top">
+                                                        <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 5px; text-align:center;width: 50%;border-right: 2px solid #15142E;" valign="top">
                                                             <table class="main" width="100%" cellpadding="0" cellspacing="0"  style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px;background-color: #fff;" bgcolor="#fff">
                                                                 <tr style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
                                                                     <td class="content-block" style="font-family: 'Source Sans Pro', sans-serif; box-sizing: border-box; vertical-align: top; margin: 0; padding: 5px 5px 0px 5px; text-align:center;width: 100%;" valign="top">

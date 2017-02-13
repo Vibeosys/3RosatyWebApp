@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Dto;
 
 /*
@@ -13,11 +14,16 @@ namespace App\Dto;
  * @author niteen
  */
 class BaseResponseDto {
-    
+
     public $errorCode;
     public $message;
     public $data;
 
+    public static function getErrorText($errorCode) {
+        $baseResponse = new BaseResponseDto();
+        $errMsg = $baseResponse->errorDictionary[$errorCode];
+        return $errMsg;
+    }
 
     //format {"errorCode":"100", "message":"User is not authenticated"}
     public static function prepareError($errorcode) {
@@ -26,24 +32,23 @@ class BaseResponseDto {
         $baseResponse->message = $baseResponse->errorDictionary[$errorcode];
         return json_encode($baseResponse);
     }
-    
-     public static function prepareSuccessMessage($successCode, $data = 0) {
+
+    public static function prepareSuccessMessage($successCode, $data = 0) {
         $baseResponse = new BaseResponseDto();
         $baseResponse->errorCode = 0;
-        $baseResponse->message =$baseResponse->successDictionary[$successCode];
+        $baseResponse->message = $baseResponse->successDictionary[$successCode];
         $baseResponse->data = $data;
         return json_encode($baseResponse);
     }
-    
+
     public static function prepareJsonSuccessMessage($successCode, $data = 0) {
         $baseResponse = new BaseResponseDto();
         $baseResponse->errorCode = 0;
-        $baseResponse->message =$baseResponse->successDictionary[$successCode];
+        $baseResponse->message = $baseResponse->successDictionary[$successCode];
         $baseResponse->data = json_encode($data);
         return json_encode($baseResponse);
     }
 
-    
     protected $errorDictionary = [
         201 => 'Sorry, no portfolio available, please send special request to reach to you',
         202 => 'No categories yet added, do you want to suggest something',
@@ -69,10 +74,23 @@ class BaseResponseDto {
         222 => 'This email id already exists, please choose another one or try forgot password',
         223 => 'Sorry, email addresses supplied, is not available with us',
         224 => 'Sorry, error occurred while processing your request, please try again',
-        225 => 'Some error occurred, please login'
-       ];
-    
-    protected $successDictionary = [       
+        225 => 'Some error occurred, please login',
+        226 => 'Status for the subscriber could not be updated',
+        227 => 'Category with same name already exist, please name it differently',
+        228 => 'Category could not be added, please try again later',
+        229 => 'Category could not be updated, please try again later',
+        230 => 'Sub category title for the selected category already exist, please name it differently',
+        231 => 'Sub category could not be added, please try again',
+        232 => 'Sub category could not be updated, please try again',
+        233 => 'Selected banner image could not be uploaded',
+        234 => 'Banner details could not be saved, please try again later',
+        235 => 'Banner could not be deleted',
+        236 => 'No advt banner found for the requested type',
+        237 => 'Trade certificate is mandatory for the corporate registration, please upload one',
+        238 => 'Sorry, wrong credentials, please try again',
+        239 => 'Sorry, you need to login, to request for services'
+    ];
+    protected $successDictionary = [
         101 => 'List of available portfolios',
         102 => 'List of categories/subcategories',
         103 => 'Registration was successful',
@@ -95,7 +113,15 @@ class BaseResponseDto {
         120 => 'Payment initiated successfully',
         121 => 'Forgot password email is sent successfully',
         122 => 'Thank you for contacting us, we will get back to you soon.',
-        123 => 'Email has been successfully sent'
-       ];
-    
+        123 => 'Email has been successfully sent',
+        124 => 'Subscriber status updated successfully',
+        125 => 'Category added successfully',
+        126 => 'Category updated successfully',
+        127 => 'Sub category added successfully',
+        128 => 'Sub category updated successfully',
+        129 => 'Banner details updated successfully',
+        130 => 'Banner deleted successfully',
+        131 => 'Banner details'
+    ];
+
 }

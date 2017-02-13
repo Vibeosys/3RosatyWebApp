@@ -12,21 +12,377 @@ use App\Controller\AppController;
 class PortfolioController extends AppController {
 
     /**
-     * Index method
-     *
-     * @return \Cake\Network\Response|null
+     * Website method
+     * @param type $categorySubcategoryShortName
      */
-    public function index() {
-        $portfolio = $this->paginate($this->Portfolio);
+    public function view($categorySubcategoryShortName) {
+        $this->layout = 'home_layout';
 
-        $this->set(compact('portfolio'));
-        $this->set('_serialize', ['portfolio']);
+        $eventCategoriesTable = new \App\Model\Table\EventcategoriesTable();
+        $eventCategoryList = $eventCategoriesTable->getCategoriesAndSubcategories();
+
+        $eventSubCategoryTable = New \App\Model\Table\SubcategoriesTable();
+
+        $data = explode("--", $categorySubcategoryShortName);
+        $categoryShortName = $data[0];
+        $subCategoryShortName = $data[1];
+
+        $categoryId = $eventCategoriesTable->getCategoryId($categoryShortName);
+        $subCategoryId = $eventSubCategoryTable->getSubCategoryId($subCategoryShortName);
+
+        $categoryWisePortfolioList = $this->Portfolio->getCategoryWisePortfolioList($categoryId, $subCategoryId);
+
+        $advtBannerTable = new \App\Model\Table\AdvtbannerTable();
+        $topBannerDetails = $advtBannerTable->getDetails(PORTFOLIO_PAGE_TOP_BANNER);
+        $bottomBannerDetails = $advtBannerTable->getDetails(PORTFOLIO_PAGE_BOTTOM_BANNER);
+
+        if ($this->sessionManager->isUserLoggedIn()) {
+            $this->set('isUserLoggedIn', true);
+            $this->set('userName', $this->sessionManager->getUserName());
+        }
+        if ($this->sessionManager->isSubscriberLoggedIn()) {
+            $this->set('isSubscriberLoggedIn', true);
+            $this->set('subscriberName', $this->sessionManager->getSubscriberName());
+        }
+
+        $this->set(['eventCategoryList' => $eventCategoryList,
+            'categoryId' => $categoryId,
+            'subCategoryId' => $subCategoryId,
+            'portfolioDetails' => $categoryWisePortfolioList,
+            'topBannerDetails' => $topBannerDetails,
+            'bottomBannerDetails' => $bottomBannerDetails
+        ]);
     }
 
+    public function add() {
+        $this->layout = 'home_layout';
+
+        if (!$this->sessionManager->isSubscriberSubscribed()) {
+            $this->redirect('/subscribers/login');
+            return;
+        }
+
+        $subscriberType = $this->sessionManager->getSubscriberType();
+        $allowedImageCount = $this->_getAllowedImageCount($subscriberType);
+
+        $eventCategoryTable = new \App\Model\Table\EventcategoriesTable();
+        $categoryList = $eventCategoryTable->getCategories();
+
+        if ($this->sessionManager->isSubscriberLoggedIn()) {
+            $this->set('isSubscriberLoggedIn', true);
+            $this->set('subscriberName', $this->sessionManager->getSubscriberName());
+        }
+
+        $this->set([
+            'allowedImageCount' => $allowedImageCount,
+            'categoryList' => $categoryList
+        ]);
+    }
+
+    public function update($portfolioId = null, $errorCode = null) {
+        $this->layout = 'home_layout';
+
+        $errorDivClass = '';
+        $errorMsg = '';
+
+        //Subscriber type is null when subscribers enter
+        if (!$this->sessionManager->isAdminLoggedIn()) {
+            if (!$this->sessionManager->isSubscriberSubscribed()) {
+                $this->redirect('/subscribers/login');
+                return;
+            }
+
+            if ($this->sessionManager->isSubscriberLoggedIn()) {
+                $this->set('isSubscriberLoggedIn', true);
+                $this->set('subscriberName', $this->sessionManager->getSubscriberName());
+            }
+
+            $subscriberType = $this->sessionManager->getSubscriberType();
+        } else {
+            $subscriberType = $this->sessionManager->getAdminSubscriberType();
+        }
+        //error code is 0 when admin logs in
+        if ($errorCode != null && $errorCode != 0) {
+            $errorMsg = \App\Dto\BaseResponseDto::getErrorText($errorCode);
+            $errorDivClass = 'error-wrapper error-msg-display-block';
+        } else {
+            $errorDivClass = 'error-wrapper error-msg-display-none';
+        }
+
+
+        //$portfolioTable = new \App\Model\Table\PortfolioTable();
+        $portfolioDetails = $this->Portfolio->getPortfolioData($portfolioId);
+
+        $eventCategoryTable = new \App\Model\Table\EventcategoriesTable();
+        $categoryList = $eventCategoryTable->getCategories();
+
+        $subCategoriesTable = new \App\Model\Table\SubcategoriesTable();
+        $subCategoryList = $subCategoriesTable->getSubCategoryList($portfolioDetails->categoryId);
+
+
+        $allowedImageCount = $this->_getAllowedImageCount($subscriberType);
+
+        $this->set([
+            'allowedImageCount' => $allowedImageCount,
+            'categoryList' => $categoryList,
+            'subCategoryList' => $subCategoryList,
+            'portfolioDetails' => $portfolioDetails,
+            'errorDivClass' => $errorDivClass,
+            'errorMsg' => $errorMsg
+        ]);
+    }
+
+    public function saveupdate() {
+        $subscriberId = 0;
+        if (!$this->sessionManager->isAdminLoggedIn()) {
+            if (!$this->sessionManager->isSubscriberLoggedIn()) {
+                $this->redirect('/subscribers/login');
+                return;
+            }
+            $subscriberId = $this->sessionManager->getSubscriberId();
+        } else {
+            $subscriberId = $this->sessionManager->getAdminSubscriberId();
+        }
+
+        $portfolio = $this->_buildPortfolioForUpdate($this->request->data);
+        $portfolioPhotos = $this->_buildPortfolioPhotosForUpdate($this->request->data);
+
+        $success = false;
+        $portfolioTable = new \App\Model\Table\PortfolioTable();
+        $updated = $portfolioTable->updatePortfolio($portfolio);
+
+        $portfolioPhotosTable = new \App\Model\Table\PortfolioPhotosTable();
+        $updatedPhotos = $portfolioPhotosTable->addOrdUpdatePhotos($portfolioPhotos, $portfolio->portfolioId);
+
+        if ($updated && $updatedPhotos) {
+            if (!$this->sessionManager->isAdminLoggedIn()) {
+                $this->redirect('/subscribers/portfolio');
+            }
+            else{
+                $this->redirect('/admin/dashboard');
+            }
+        } else {
+            $errorCode = 216;
+            $this->redirect('/portfolio/update/' + $portfolio->portfolioId + '/' + $errorCode);
+        }
+    }
+
+    private function _getAllowedImageCount($subscriberType) {
+        $allowedImageCount = 0;
+        if ($subscriberType == CORPORATE_SUB_TYPE) {
+            $allowedImageCount = IMAGE_CORPORATE_LIMIT;
+        } else {
+            $allowedImageCount = IMAGE_FREELANCE_LIMIT;
+        }
+        return $allowedImageCount;
+    }
+
+    public function save() {
+
+        if (!$this->sessionManager->isSubscriberLoggedIn()) {
+            $this->redirect('/subscribers/login');
+            return;
+        }
+
+        $subscriberId = $this->sessionManager->getSubscriberId();
+
+        $portfolio = $this->_buildPortfolio($this->request->data);
+        $portfolioPhotos = $this->_buildPortfolioPhotos($this->request->data);
+
+        $success = false;
+        $portfolioTable = new \App\Model\Table\PortfolioTable();
+        $portfolioId = $portfolioTable->addPortfolio($portfolio, $subscriberId);
+
+        if ($portfolioId != 0) {
+            $portfolioPhotosTable = new \App\Model\Table\PortfolioPhotosTable();
+            $success = $portfolioPhotosTable->addPortfolioPhotos($portfolioPhotos, $portfolioId);
+        }
+
+        if ($success) {
+            $this->redirect('/subscribers/portfolio');
+        }
+        //$resultPhotoId = $this->PortfolioPhotos->addSubscriberPhoto($photoUploadRequest->portfolioId, $uploadedFilePath, $photoUploadRequest->isCoverImageUpload);
+    }
+
+    private function _buildPortfolio($requestData) {
+        $portfolio = new \App\Dto\PortfolioAdditionDto();
+        $portfolio->categoryId = $requestData['select_cat'];
+        $portfolio->subCategoryId = $requestData['select-subcat-id'];
+        $portfolio->fbLink = $requestData['cor_fb_link'];
+        $portfolio->youtubeLink = $requestData['cor_yt_link'];
+        $portfolio->minPrice = $requestData['min_price'];
+        $portfolio->maxPrice = $requestData['max_price'];
+        $portfolio->aboutUs = $requestData['corpo_self'];
+        return $portfolio;
+    }
+
+    private function _buildPortfolioForUpdate($requestData) {
+        $portfolio = new \App\Dto\PortfolioUpdateRequestDto();
+        $portfolio->categoryId = $requestData['select_cat'];
+        $portfolio->subCategoryId = $requestData['select-subcat-id'];
+        $portfolio->fbLink = $requestData['cor_fb_link'];
+        $portfolio->youtubeLink = $requestData['cor_yt_link'];
+        $portfolio->minPrice = $requestData['min_price'];
+        $portfolio->maxPrice = $requestData['max_price'];
+        $portfolio->aboutUs = $requestData['corpo_self'];
+        $portfolio->portfolioId = $requestData['hdnPortfolioId'];
+        $portfolio->isActive = $requestData['rd_active'];
+        return $portfolio;
+    }
+
+    /**
+     * Build portfolio photos from request
+     * @param RequestData $requestData
+     * @return array
+     */
+    private function _buildPortfolioPhotos($requestData) {
+        $portfolioList = [];
+        $coverImageTmpName = '';
+
+        $portfolioCoverPhoto = new \App\Dto\ServerImageResponseDto();
+        $coverImagePath = $requestData['coverImage'];
+        //Upload the cover image first
+        $uploadedCoverImage = \App\Utils\ImageFileUploader::uploadMultipartImage($this->_getWebrootDir(), $coverImagePath);
+        $portfolioCoverPhoto->isCoverImage = true;
+        $portfolioCoverPhoto->photoUrl = $uploadedCoverImage;
+        //Get the tmp name, to not consider it again
+        if (is_array($coverImagePath)) {
+            $coverImageTmpName = $coverImagePath['tmp_name'];
+        }
+
+        array_push($portfolioList, $portfolioCoverPhoto);
+
+        //Then upload the rest of images
+        foreach ($requestData as $fileContents) {
+            //Check if filecontent is an array, leave everything aside
+            if (!is_array($fileContents)) {
+                continue;
+            }
+            $tmpFileName = $fileContents['tmp_name'];
+            if ($tmpFileName == '')
+                continue;
+
+            //Just to make sure, we dont count the uploaded images twice
+            if ($tmpFileName == $coverImageTmpName) {
+                continue;
+            }
+
+            $portfolioPhoto = new \App\Dto\ServerImageResponseDto();
+            //$resultPhotoId = 0;
+            //Upload the get the server image path
+            $uploadedFilePath = \App\Utils\ImageFileUploader::uploadMultipartImage($this->_getWebrootDir(), $fileContents);
+
+            $portfolioPhoto->isCoverImage = false;
+            $portfolioPhoto->photoUrl = $uploadedFilePath;
+            array_push($portfolioList, $portfolioPhoto);
+        }
+
+        return $portfolioList;
+    }
+
+    private function _buildPortfolioPhotosForUpdate($requestData) {
+        $portfolioList = [];
+        $coverImageTmpName = '';
+
+        $portfolioCoverPhoto = new \App\Dto\ServerImageResponseDto();
+
+        $coverImagePath = $requestData['coverImage'];
+        if ($coverImagePath['tmp_name'] != '') {
+            //Upload the cover image first
+            $uploadedCoverImage = \App\Utils\ImageFileUploader::uploadMultipartImage($this->_getWebrootDir(), $coverImagePath);
+            $portfolioCoverPhoto->isCoverImage = true;
+            $portfolioCoverPhoto->photoUrl = $uploadedCoverImage;
+            $portfolioCoverPhoto->photoId = -1;
+
+            //Get the tmp name, to not consider it again
+            if (is_array($coverImagePath)) {
+                $coverImageTmpName = $coverImagePath['tmp_name'];
+            }
+            //Create entry for cover image in the array
+            array_push($portfolioList, $portfolioCoverPhoto);
+        }
+
+
+        //Then upload the rest of images
+        foreach ($requestData as $fileKey => $fileContents) {
+            //Check if filecontent is an array, leave everything aside
+            if (!is_array($fileContents)) {
+                continue;
+            }
+            //Just to make sure, we dont count the uploaded images twice
+            $tmpFileName = $fileContents['tmp_name'];
+            if ($tmpFileName == '' || $tmpFileName == $coverImageTmpName)
+                continue;
+
+            $portfolioPhoto = new \App\Dto\ServerImageResponseDto();
+            //Upload the get the server image path
+            $uploadedFilePath = \App\Utils\ImageFileUploader::uploadMultipartImage($this->_getWebrootDir(), $fileContents);
+
+            if ($uploadedFilePath == null)
+                continue;
+            //Split the string file1211 to 1211 just remove file and get the photo id
+            $fileNameStartsWith = strlen('file');
+            $portfolioPhoto->photoId = substr($fileKey, $fileNameStartsWith);
+
+            $portfolioPhoto->isCoverImage = false;
+            $portfolioPhoto->photoUrl = $uploadedFilePath;
+            array_push($portfolioList, $portfolioPhoto);
+        }
+
+        return $portfolioList;
+    }
+
+    /**
+     * Website method
+     */
+    public function resetFilter() {
+        $this->autoRender = false;
+        $categoryId = $this->request->data['categoryId'];
+        $subCategoryId = $this->request->data['subCategoryId'];
+
+        $categoryWisePortfolioList = $this->Portfolio->getCategoryWisePortfolioList($categoryId, $subCategoryId);
+        // $this->set(['portfolioDetails' => $categoryWisePortfolioList]);
+        $this->response->body(json_encode($categoryWisePortfolioList));
+    }
+
+    /**
+     * Website ajax method
+     */
+    public function filteredPortfolios() {
+        $this->autoRender = false;
+
+        $categoryId = $this->request->data['categoryId'];
+        $subCategoryId = $this->request->data['subCategoryId'];
+        $minPrice = $this->request->data['minPrice'];
+        $maxPrice = $this->request->data['maxPrice'];
+        $sortById = $this->request->data['sortById'];
+        // $data = json_encode($id);
+        // $Cat = json_encode($Cat);
+        //echo('ok');
+        $portfolioDetails = $this->Portfolio->getFilteredPortfolioList(
+                $categoryId, $subCategoryId, $minPrice, $maxPrice, $sortById);
+        $this->response->body(json_encode($portfolioDetails));
+        //  $this->set(['portfolioDetails' => json_encode($portfolioDetails)])
+    }
+
+    //REST API
     public function getPortfolioDetails() {
         $this->apiInitialize();
         $portfolioDetaiRequest = \App\Dto\PortfolioDetailRequestDto::Deserialize($this->postedData);
         $portfolioDetails = $this->Portfolio->getPortfolioDetails($portfolioDetaiRequest);
+        if ($portfolioDetails) {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareJsonSuccessMessage(107, $portfolioDetails));
+        } else {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(208));
+        }
+    }
+
+    public function getPortfolioDetailsForWeb() {
+        $this->apiInitialize();
+        $portfolioDetailsRequest = new \App\Dto\PortfolioDetailRequestDto();
+        $portfolioDetailsRequest->portfolioId = $this->request->data['portfolioId'];
+        //$portfolioDetaiRequest = \App\Dto\PortfolioDetailRequestDto::Deserialize($this->postedData);
+        $portfolioDetails = $this->Portfolio->getPortfolioDetails($portfolioDetailsRequest);
         if ($portfolioDetails) {
             $this->response->body(\App\Dto\BaseResponseDto::prepareJsonSuccessMessage(107, $portfolioDetails));
         } else {
@@ -122,87 +478,6 @@ class PortfolioController extends AppController {
         } else {
             $this->response->body(\App\Dto\BaseResponseDto::prepareError(219));
         }
-    }
-
-    /**
-     * View method
-     *
-     * @param string|null $id Portfolio id.
-     * @return \Cake\Network\Response|null
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function view($id = null) {
-        $portfolio = $this->Portfolio->get($id, [
-            'contain' => []
-        ]);
-
-        $this->set('portfolio', $portfolio);
-        $this->set('_serialize', ['portfolio']);
-    }
-
-    /**
-     * Add method
-     *
-     * @return \Cake\Network\Response|void Redirects on successful add, renders view otherwise.
-     */
-    public function add() {
-        $portfolio = $this->Portfolio->newEntity();
-        if ($this->request->is('post')) {
-            $portfolio = $this->Portfolio->patchEntity($portfolio, $this->request->data);
-            if ($this->Portfolio->save($portfolio)) {
-                $this->Flash->success(__('The portfolio has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The portfolio could not be saved. Please, try again.'));
-            }
-        }
-        $this->set(compact('portfolio'));
-        $this->set('_serialize', ['portfolio']);
-    }
-
-    /**
-     * Edit method
-     *
-     * @param string|null $id Portfolio id.
-     * @return \Cake\Network\Response|void Redirects on successful edit, renders view otherwise.
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function edit($id = null) {
-        $portfolio = $this->Portfolio->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $portfolio = $this->Portfolio->patchEntity($portfolio, $this->request->data);
-            if ($this->Portfolio->save($portfolio)) {
-                $this->Flash->success(__('The portfolio has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The portfolio could not be saved. Please, try again.'));
-            }
-        }
-        $this->set(compact('portfolio'));
-        $this->set('_serialize', ['portfolio']);
-    }
-
-    /**
-     * Delete method
-     *
-     * @param string|null $id Portfolio id.
-     * @return \Cake\Network\Response|null Redirects to index.
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function delete($id = null) {
-        $this->request->allowMethod(['post', 'delete']);
-        $portfolio = $this->Portfolio->get($id);
-        if ($this->Portfolio->delete($portfolio)) {
-            $this->Flash->success(__('The portfolio has been deleted.'));
-        } else {
-            $this->Flash->error(__('The portfolio could not be deleted. Please, try again.'));
-        }
-
-        return $this->redirect(['action' => 'index']);
     }
 
 }

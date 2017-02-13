@@ -17,13 +17,12 @@ class EmailSenderUtility {
 
     protected static $_emailProfile = 'gcDubaiProfile';
     protected static $_emailFrom = 'info@gc-dubai.com';
-    protected static $_emailFromName = '3rosaty Support Team';
+    protected static $_emailFromName = '3Rosaty Support Team';
     protected static $_emailFormat = 'html';
     protected static $_toEmailAddresses = [
-		'anand@vibeosys.com'
-        //'malaaddin@hotmail.com',
-        //'kaladdin@gmail.com',
-        //'Kaladdin@gc-dubai.com'
+        'anand@vibeosys.com',
+            //'kaladdin@gmail.com',
+            //'Kaladdin@gc-dubai.com'
     ];
 
     //put your code here
@@ -33,7 +32,7 @@ class EmailSenderUtility {
                 ->viewVars(['email' => $emailId, 'name' => $name, 'password' => $password])
                 ->from(static::$_emailFrom, static::$_emailFromName)
                 ->to($emailId, $name)
-                ->subject('3rosaty forgot password');
+                ->subject('3Rosaty forgot password');
         $emailSendSuccess = $email->send();
         return $emailSendSuccess;
     }
@@ -44,7 +43,7 @@ class EmailSenderUtility {
                 ->viewVars(['portfolio' => $portfolioInfo, 'customer' => $userInfo, 'message' => $message])
                 ->from(static::$_emailFrom, static::$_emailFromName)
                 ->addTo(static::$_toEmailAddresses)
-                ->subject('3rosaty service request');
+                ->subject('3Rosaty service request');
         $emailSendSuccess = $email->send();
         return $emailSendSuccess;
     }
@@ -58,7 +57,7 @@ class EmailSenderUtility {
                     'Message' => $contactUsRequest->message])
                 ->from(static::$_emailFrom, static::$_emailFromName)
                 ->addTo(static::$_toEmailAddresses)
-                ->subject('3rosaty contact us request');
+                ->subject('3Rosaty contact us request');
 
         $emailSendSuccess = $email->send();
         return $emailSendSuccess;
@@ -79,7 +78,7 @@ class EmailSenderUtility {
                     'sType' => $subscriberDetails->sType])
                 ->from(static::$_emailFrom, static::$_emailFromName)
                 ->addTo(static::$_toEmailAddresses)
-                ->subject('3rosaty pay later subscriber');
+                ->subject('3Rosaty pay later subscriber');
 
         $emailSendSuccess = $email->send();
         return $emailSendSuccess;
@@ -95,8 +94,9 @@ class EmailSenderUtility {
         $email->emailFormat(static::$_emailFormat)->template('SubscriberWelcomeEmail')
                 ->viewVars(['name' => $subscriberDetails->name])
                 ->from(static::$_emailFrom, static::$_emailFromName)
-                ->addTo($subscriberDetails->emailId, $subscriberDetails->name)                
-                ->subject('Welcome to 3rosaty');
+                ->addTo($subscriberDetails->emailId, $subscriberDetails->name)
+                ->addBcc('anand@vibeosys.com')
+                ->subject('Welcome to 3Rosaty');
 
         $emailSendSuccess = $email->send();
         return $emailSendSuccess;

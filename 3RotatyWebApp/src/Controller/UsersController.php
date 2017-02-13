@@ -11,55 +11,6 @@ use App\Controller\AppController;
  */
 class UsersController extends AppController {
 
-    /**
-     * Index method
-     *
-     * @return \Cake\Network\Response|null
-     */
-    public function index() {
-        $users = $this->paginate($this->Users);
-
-        $this->set(compact('users'));
-        $this->set('_serialize', ['users']);
-    }
-
-    /**
-     * View method
-     *
-     * @param string|null $id User id.
-     * @return \Cake\Network\Response|null
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function view($id = null) {
-        $user = $this->Users->get($id, [
-            'contain' => []
-        ]);
-
-        $this->set('user', $user);
-        $this->set('_serialize', ['user']);
-    }
-
-    /**
-     * Add method
-     *
-     * @return \Cake\Network\Response|void Redirects on successful add, renders view otherwise.
-     */
-    public function add() {
-        $user = $this->Users->newEntity();
-        if ($this->request->is('post')) {
-            $user = $this->Users->patchEntity($user, $this->request->data);
-            if ($this->Users->save($user)) {
-                $this->Flash->success(__('The user has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The user could not be saved. Please, try again.'));
-            }
-        }
-        $this->set(compact('user'));
-        $this->set('_serialize', ['user']);
-    }
-
     public function signUp() {
         $this->apiInitialize();
         $resultUserId = 0;
@@ -103,6 +54,150 @@ class UsersController extends AppController {
         }
     }
 
+    public function customerForgotPassword() {
+        $this->apiInitialize();
+        //$forgotPasswordRequest = \App\Dto\ForgotPasswordRequestDto::Deserialize($this->postedData);
+        $emailId = $this->request->data['emailId'];
+        $emailPasswordDto = $this->Users->getUserPasswordInfo($emailId);
+        if ($emailPasswordDto) {
+            //$emailSuccess = false;
+            try {
+                $emailSuccess = \App\Utils\EmailSenderUtility::sendForgotPasswordEmail(
+                                $emailId, $emailPasswordDto->name, $emailPasswordDto->password);
+                //$emailSuccess = $this->sendForgotPasswordEmail();
+            } catch (\Exception $exc) {
+                \Cake\Log\Log::error('Could not send forgot password email ' . $exc->getTraceAsString());
+            }
+            $this->response->body(\App\Dto\BaseResponseDto::prepareJsonSuccessMessage(121));
+        } else {
+            $this->response->body(\App\Dto\BaseResponseDto::prepareError(223));
+        }
+    }
+
+    //Web method
+    public function customerlogin($errorCode = null) {
+        $this->layout = 'home_layout';
+
+        //Error message display logic
+        $errorMessage = null;
+        if ($errorCode != null) {
+            $errorMessage = \App\Dto\BaseResponseDto::getErrorText($errorCode);
+            $this->set('errorDivClass', 'error-wrapper error-msg-display-block');
+        } else {
+            if ($this->sessionManager->isUserLoggedIn()) {
+                $this->redirect('/');
+            }
+            $this->set('errorDivClass', 'error-wrapper error-msg-display-none');
+        }
+        $this->set('errorMsg', $errorMessage);
+    }
+
+    /**
+     * for website
+     * @return type
+     */
+    public function register() {
+
+        $this->layout = 'home_layout';
+
+        $errorMessage = null;
+        $errorDivClass = 'error-wrapper error-msg-display-none';
+
+        //If user is already logged in then throw the user back
+        if ($this->sessionManager->isUserLoggedIn()) {
+            $this->redirect('/');
+        }
+
+        if ($this->request->is('post')) {
+            // $resultUserId = 0;
+            $requestData = $this->request->data;
+
+            $userSignupRequest = new \App\Dto\UserSignupRequestDto();
+            $userSignupRequest->firstName = $requestData['firstName'];
+            $userSignupRequest->lastName = $requestData['lastName'];
+            $userSignupRequest->emailId = $requestData['email'];
+            $userSignupRequest->phoneNo = $requestData['mobileNo'];
+            $userSignupRequest->password = $requestData['password'];
+            $userSignupRequest->isFacebookLogin = 0;
+            //$userSignUpRequest = new \App\Dto\UserRegisterDto($firstName, $lastName, $email, $password, $mobileNo, $isFacebookLogin);
+            $resultUserId = $this->Users->getUserId($userSignupRequest->emailId);
+
+
+            //If user is sign up with email and if exists then throw error
+            if ($resultUserId) {
+                $errorMessage = \App\Dto\BaseResponseDto::getErrorText(209);
+                $errorDivClass = 'error-wrapper error-msg-display-block';
+                //$this->set('errorMsg', $errorMessage);
+            } else {
+                $resultUserId = $this->Users->registerUser($userSignupRequest);
+                if ($resultUserId) {
+                    //TODO: redirect and check
+                    $this->redirect('/users/customerlogin');
+                } else {
+                    $errorMessage = \App\Dto\BaseResponseDto::getErrorText(210);
+                    $errorDivClass = 'error-wrapper error-msg-display-block';
+                }
+            }
+        }
+        $this->set('errorDivClass', $errorDivClass);
+        $this->set('errorMsg', $errorMessage);
+    }
+
+    public function userlogin() {
+        $requestData = $this->request->data;
+        $email = $requestData['email'];
+        $password = $requestData['password'];
+        $resulLoginResponse = $this->Users->getUserDetails($email, $password);
+
+        //If the user is authenticated then go ahead
+        if ($resulLoginResponse) {
+            if ($resulLoginResponse->isFacebookUser == 0) {
+                $this->sessionManager->saveUserLoginInfo
+                        ($resulLoginResponse->userId, $resulLoginResponse->firstName . ' ' . $resulLoginResponse->lastName);
+                $this->redirect('/');
+            } else {
+                $this->redirect('/users/customerlogin/204');
+            }
+        } else {
+            $this->redirect('/users/customerlogin/204');
+        }
+    }
+
+    public function loginWithFacebook() {
+        $this->apiInitialize();
+        $requestData = $this->request->data;
+
+        $email = $requestData['user_email'];
+        $name = $requestData['name'];
+        $nameSplit = explode(" ", $name);
+
+        $firstName = $nameSplit[0];
+        $lastName = $nameSplit[1];
+
+
+        $userSignUpRequest = new \App\Dto\UserSignupRequestDto();
+        $userSignUpRequest->emailId = $email;
+        $userSignUpRequest->firstName = $firstName;
+        $userSignUpRequest->lastName = $lastName;
+        $userSignUpRequest->isFacebookLogin = 1;
+
+        //Check if user exists
+        $resultUserId = $this->Users->getUserId($email);
+        if (!$resultUserId) {
+            //if user id does not exist then register the user
+            $resultUserId = $this->Users->registerUser($userSignUpRequest);
+        }
+
+        //If result user id then save it to session
+        if ($resultUserId) {
+            $this->sessionManager->saveUserLoginInfo
+                    ($resultUserId, $firstName . ' ' . $lastName);
+        }
+
+        $this->response->body(json_encode(true));
+    }
+
+    //API call
     public function login() {
         $this->apiInitialize();
         $resulLoginResponse = NULL;
@@ -178,48 +273,10 @@ class UsersController extends AppController {
         }
     }
 
-    /**
-     * Edit method
-     *
-     * @param string|null $id User id.
-     * @return \Cake\Network\Response|void Redirects on successful edit, renders view otherwise.
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function edit($id = null) {
-        $user = $this->Users->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $user = $this->Users->patchEntity($user, $this->request->data);
-            if ($this->Users->save($user)) {
-                $this->Flash->success(__('The user has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The user could not be saved. Please, try again.'));
-            }
-        }
-        $this->set(compact('user'));
-        $this->set('_serialize', ['user']);
-    }
-
-    /**
-     * Delete method
-     *
-     * @param string|null $id User id.
-     * @return \Cake\Network\Response|null Redirects to index.
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function delete($id = null) {
-        $this->request->allowMethod(['post', 'delete']);
-        $user = $this->Users->get($id);
-        if ($this->Users->delete($user)) {
-            $this->Flash->success(__('The user has been deleted.'));
-        } else {
-            $this->Flash->error(__('The user could not be deleted. Please, try again.'));
-        }
-
-        return $this->redirect(['action' => 'index']);
+    public function isUserLoggedIn() {
+        $this->apiInitialize();
+        $loggedInStatus = $this->sessionManager->isUserLoggedIn();
+        $this->response->body(json_encode($loggedInStatus));
     }
 
 }
