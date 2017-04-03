@@ -46,7 +46,8 @@ echo $this->Html->script('/js/pages/subscriber-portfolio.js', ['block' => true])
                     <div class="col-lg-4 col-md-4 col-sm-6 col-xs-12 ">
                         <div class="layout-figure">
                             <div class="figure-img">                            
-                                <img class="img-responsive" src="<?= $portfolio->coverImageUrl ?>">
+                                <div class="cover-img" style="background-image:url(<?= $portfolio->coverImageUrl ?>);">
+                            </div>
                             </div>
                             <div class="figure-caption">
                                 <div class="artist-name">

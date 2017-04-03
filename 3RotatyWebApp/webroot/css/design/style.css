@@ -1261,10 +1261,9 @@ mark {
     transition: height .6s ease-in-out;
 }
 .figure-caption {
-    border: 1px solid whitesmoke;
     box-shadow: 1px 1px 10px #e4e4e4;
     position: relative;
-    height: 142px;
+    height: 141px;
 }
 .figure-caption .artist-name h4{
     font-size: 17px;
@@ -1971,10 +1970,9 @@ select.form-control{
     font-weight: 400;
 }
 .category_artist .figure-caption{
-    border: 1px solid whitesmoke;
     box-shadow: 1px 1px 10px #e4e4e4;
     position: relative;
-    height: 166px;
+    height: 177px;
     background: #fff;
 }
 .category_artist .figure-caption .artist-name h3 {
@@ -2654,7 +2652,19 @@ input[type=search] {
 .portfolio .button-set  .white_back_btn {
     margin-bottom: 20px;
 }
-
+.img-slider-list{
+    max-height: 320px;
+    min-height: 320px;
+}
+.cover-img{
+    max-height: 225px;
+    min-height: 225px;
+}
+.img-slider-list,.cover-img{
+ background-size: cover;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+}
 .data-not-found{
     margin: 30px 0px;
 }

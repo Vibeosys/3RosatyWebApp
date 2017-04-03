@@ -428,7 +428,8 @@ echo $this->Html->script('/js/pages/request-service.js', ['block' => true]);
                             } else {
                                 ?>
 
-                                <?= $this->Html->image($portfolio->coverImageUrl, ['class' => 'img-responsive', 'alt' => $textToDisplayOnOverlay]) ?>
+                              <div class="cover-img" style="background-image:url(<?= $portfolio->coverImageUrl ?>);">
+                            </div>
                                 <?php
                             }
                             ?>

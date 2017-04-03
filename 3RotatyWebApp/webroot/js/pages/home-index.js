@@ -82,7 +82,7 @@ function showDetails(portfolioId) {
                 var liList = '';
                 $.each(portfolioData.photos, function (id, obj) {
                     //alert(obj);
-                    liList += "<li><img src='" + obj + "'></li>";
+                    liList += "<li><div class='img-slider-list' style='background-image:url("+obj+");'></div></li>";
                 });
                 //alert(liList);
                 $("#slider1").html(liList);
